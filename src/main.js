@@ -26,6 +26,24 @@ const wmsLayer = new Cesium.WebMapServiceImageryProvider({
 
 viewer.imageryLayers.addImageryProvider(wmsLayer);
 
+// --- Lighting, sky, sun & moon ---
+viewer.scene.globe.enableLighting = true;
+viewer.shadows = true;
+viewer.scene.skyAtmosphere.show = true;
+viewer.scene.skyBox.show = true;
+viewer.scene.sun.show = true;
+viewer.scene.moon.show = true;
+viewer.scene.globe.showGroundAtmosphere = true;
+
+// THE KEY FIX: tell the sky's color to actually track the sun's real position.
+// Without this, the atmosphere can stay locked to a fixed brightness regardless
+// of what time you set — which matches exactly what you saw.
+viewer.scene.skyAtmosphere.dynamicLighting = Cesium.DynamicAtmosphereLightingType.SUNLIGHT;
+
+// Freeze the clock so time ONLY changes when you move the slider —
+// otherwise it keeps silently ticking forward in the background.
+viewer.clock.shouldAnimate = false;
+
 // Step C: load YOUR buildings using the Asset ID from Step 2.
 const YOUR_ASSET_ID = 4877153; // <-- replace this number with your own asset ID
 
@@ -40,3 +58,27 @@ async function loadBuildings() {
 }
 
 loadBuildings();
+
+// --- Day/night time slider ---
+// Using an equinox date (Sept 22) instead of the solstice — day and night
+// are roughly equal length, so the sky's transition is much more visible.
+const baseDate = Cesium.JulianDate.fromIso8601('2024-09-22T00:00:00Z');
+const slider = document.getElementById('timeSlider');
+const timeLabel = document.getElementById('timeLabel');
+
+function updateTime(hours) {
+  const newTime = Cesium.JulianDate.addHours(baseDate, hours, new Cesium.JulianDate());
+  viewer.clock.currentTime = newTime;
+  viewer.scene.requestRender(); // force an immediate redraw of sky + lighting
+
+  const wholeHour = Math.floor(hours);
+  const minutes = Math.round((hours - wholeHour) * 60);
+  timeLabel.textContent =
+    String(wholeHour).padStart(2, '0') + ':' + String(minutes).padStart(2, '0');
+}
+
+slider.addEventListener('input', (event) => {
+  updateTime(Number(event.target.value));
+});
+
+updateTime(12);
